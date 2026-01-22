@@ -1,0 +1,111 @@
+cabal-version:   3.0
+name:            sentinel-agent-policy
+version:         0.1.0.0
+synopsis:        Policy evaluation agent for Sentinel reverse proxy
+description:
+  A policy evaluation agent for Sentinel that supports multiple policy
+  languages including Rego (OPA) and Cedar. Provides flexible authorization
+  decisions based on request context with caching and audit logging.
+
+license:         Apache-2.0
+license-file:    LICENSE
+author:          raskell.io
+maintainer:      agents@raskell.io
+copyright:       2026 raskell.io
+category:        Network, Security
+build-type:      Simple
+extra-doc-files: README.md
+tested-with:     GHC ==9.8.4
+
+common warnings
+  ghc-options: -Wall -Wcompat -Widentities -Wincomplete-record-updates
+               -Wincomplete-uni-patterns -Wmissing-export-lists
+               -Wmissing-home-modules -Wpartial-fields -Wredundant-constraints
+
+common extensions
+  default-extensions:
+    OverloadedStrings
+    DeriveGeneric
+    DeriveAnyClass
+    DerivingStrategies
+    GeneralizedNewtypeDeriving
+    LambdaCase
+    RecordWildCards
+    TypeApplications
+    StrictData
+
+library
+  import:           warnings, extensions
+  exposed-modules:
+    Sentinel.Agent.Policy
+    Sentinel.Agent.Policy.Cache
+    Sentinel.Agent.Policy.Cedar
+    Sentinel.Agent.Policy.Config
+    Sentinel.Agent.Policy.Engine
+    Sentinel.Agent.Policy.Handler
+    Sentinel.Agent.Policy.Input
+    Sentinel.Agent.Policy.Rego
+    Sentinel.Agent.Policy.Types
+
+  build-depends:
+    , aeson                 >=2.1     && <2.3
+    , async                 >=2.2     && <2.3
+    , base                  >=4.18    && <4.21
+    , bytestring            >=0.11    && <0.13
+    , cache                 >=0.1     && <0.2
+    , case-insensitive      >=1.2     && <1.3
+    , cedar                 >=0.1     && <0.2
+    , containers            >=0.6     && <0.8
+    , hashable              >=1.4     && <1.6
+    , http-types            >=0.12    && <0.13
+    , mtl                   >=2.3     && <2.4
+    , optparse-applicative  >=0.18    && <0.19
+    , opa-hs                >=0.1     && <0.2
+    , sentinel-agent-protocol
+    , stm                   >=2.5     && <2.6
+    , text                  >=2.0     && <2.2
+    , time                  >=1.12    && <1.15
+    , unordered-containers  >=0.2     && <0.3
+    , yaml                  >=0.11    && <0.12
+
+  hs-source-dirs:   src
+  default-language: GHC2021
+
+executable sentinel-policy-agent
+  import:           warnings, extensions
+  main-is:          Main.hs
+  build-depends:
+    , base
+    , sentinel-agent-policy
+    , sentinel-agent-protocol
+    , optparse-applicative
+    , text
+    , yaml
+
+  hs-source-dirs:   app
+  default-language: GHC2021
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N
+
+test-suite sentinel-agent-policy-test
+  import:           warnings, extensions
+  type:             exitcode-stdio-1.0
+  main-is:          Main.hs
+  other-modules:
+    Test.Policy.Cedar
+    Test.Policy.Rego
+    Test.Policy.Cache
+    Test.Policy.Input
+
+  build-depends:
+    , base
+    , sentinel-agent-policy
+    , hspec                 >=2.11    && <2.12
+    , hspec-discover        >=2.11    && <2.12
+    , QuickCheck            >=2.14    && <2.16
+    , aeson
+    , bytestring
+    , text
+
+  hs-source-dirs:   test
+  default-language: GHC2021
+  ghc-options:      -threaded -rtsopts -with-rtsopts=-N

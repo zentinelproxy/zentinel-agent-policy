@@ -1,0 +1,52 @@
+# Cabal build artifacts
+dist-newstyle/
+dist/
+cabal.project.local
+cabal.project.local~
+.cabal-sandbox/
+cabal.sandbox.config
+
+# Stack artifacts
+.stack-work/
+stack.yaml.lock
+
+# GHC artifacts
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+*.chi
+*.chs.h
+*.hp
+*.eventlog
+*.prof
+
+# Haskell IDE/editor support
+.ghc.environment.*
+*.hie
+.hie/
+
+# IDE/Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Test artifacts
+test-results/
+*.tix
+
+# Build outputs
+result
+result-*
+
+# Local configuration
+.envrc
+.env
+.env.local
+
+# Runtime artifacts
+*.sock
+*.log
