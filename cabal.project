@@ -1,7 +1,10 @@
 packages: .
 
 -- Use latest Hackage index
-index-state: 2026-01-15T00:00:00Z
+index-state: 2026-01-14T00:00:00Z
+
+-- Enable tests
+tests: True
 
 -- Optimization settings
 optimization: 2
@@ -10,10 +13,3 @@ optimization: 2
 allow-newer:
   , base
   , template-haskell
-
--- Use the sentinel-agent-haskell-sdk from GitHub
-source-repository-package
-  type: git
-  location: https://github.com/raskell-io/sentinel-agent-haskell-sdk
-  tag: v0.2.0
-  subdir: sentinel-agent-protocol

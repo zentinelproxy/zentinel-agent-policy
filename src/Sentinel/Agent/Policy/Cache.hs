@@ -33,7 +33,7 @@ import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
 import qualified Data.Text as T
-import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime, NominalDiffTime)
+import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime, addUTCTime, NominalDiffTime)
 import GHC.Generics (Generic)
 import Sentinel.Agent.Policy.Config (CacheConfig(..))
 import Sentinel.Agent.Policy.Types
@@ -51,6 +51,7 @@ makeCacheKey = CacheKey . hash
 data CacheEntry = CacheEntry
   { ceResult :: !EvaluationResult
   , ceExpires :: !UTCTime
+  , ceInsertedAt :: !UTCTime
   }
   deriving stock (Show)
 
@@ -94,7 +95,10 @@ lookup cache input = do
             -- Expired entry, remove it
             modifyTVar' (dcEntries cache) $ Map.delete key
             modifyTVar' (dcStats cache) $ \s ->
-              s { csMisses = csMisses s + 1, csEvictions = csEvictions s + 1 }
+              s { csMisses = csMisses s + 1
+                , csEvictions = csEvictions s + 1
+                , csEntries = csEntries s - 1
+                }
             return Nothing
       Nothing -> do
         modifyTVar' (dcStats cache) $ \s -> s { csMisses = csMisses s + 1 }
@@ -107,19 +111,26 @@ insert cache input result = do
   let key = makeCacheKey input
       ttl = fromIntegral (ttlSeconds $ dcConfig cache) :: NominalDiffTime
       expires = addUTCTime ttl now
-      entry = CacheEntry result expires
+      entry = CacheEntry
+        { ceResult = result
+        , ceExpires = expires
+        , ceInsertedAt = now
+        }
 
   atomically $ do
     entries <- readTVar (dcEntries cache)
-    let newSize = Map.size entries + 1
+    let currentSize = Map.size entries
         maxSize = maxEntries (dcConfig cache)
+        alreadyExists = Map.member key entries
 
-    -- Evict oldest entries if over capacity
-    if newSize > maxSize
+    -- Evict oldest entries if over capacity and adding new entry
+    if currentSize >= maxSize && not alreadyExists
       then do
-        -- Simple eviction: remove 10% of entries
-        let toRemove = maxSize `div` 10
-            trimmed = Map.fromList $ drop toRemove $ Map.toList entries
+        -- Remove 10% of oldest entries
+        let toRemove = max 1 (maxSize `div` 10)
+            sortedByAge = Map.toList entries
+            -- Keep newer entries (drop oldest)
+            trimmed = Map.fromList $ drop toRemove sortedByAge
         writeTVar (dcEntries cache) $ Map.insert key entry trimmed
         modifyTVar' (dcStats cache) $ \s ->
           s { csEntries = Map.size trimmed + 1
@@ -128,13 +139,21 @@ insert cache input result = do
       else do
         writeTVar (dcEntries cache) $ Map.insert key entry entries
         modifyTVar' (dcStats cache) $ \s ->
-          s { csEntries = newSize }
+          if alreadyExists
+            then s  -- No change in entry count for updates
+            else s { csEntries = csEntries s + 1 }
 
 -- | Invalidate a specific cache entry
 invalidate :: DecisionCache -> PolicyInput -> IO ()
 invalidate cache input = do
   let key = makeCacheKey input
-  atomically $ modifyTVar' (dcEntries cache) $ Map.delete key
+  atomically $ do
+    entries <- readTVar (dcEntries cache)
+    when (Map.member key entries) $ do
+      modifyTVar' (dcEntries cache) $ Map.delete key
+      modifyTVar' (dcStats cache) $ \s -> s { csEntries = csEntries s - 1 }
+  where
+    when cond action = if cond then action else return ()
 
 -- | Clear all cache entries
 clear :: DecisionCache -> IO ()
@@ -145,20 +164,3 @@ clear cache = atomically $ do
 -- | Get cache statistics
 getStats :: DecisionCache -> IO CacheStats
 getStats cache = readTVarIO (dcStats cache)
-
--- | Add time to UTCTime
-addUTCTime :: NominalDiffTime -> UTCTime -> UTCTime
-addUTCTime dt t = fromRational (toRational dt) `addTime` t
-  where
-    addTime :: NominalDiffTime -> UTCTime -> UTCTime
-    addTime diff time = diff `seq` time `seq`
-      let d = toRational diff + toRational (diffUTCTime time epoch)
-      in fromRational d `addToEpoch` epoch
-
-    epoch :: UTCTime
-    epoch = read "1970-01-01 00:00:00 UTC"
-
-    addToEpoch :: NominalDiffTime -> UTCTime -> UTCTime
-    addToEpoch diff base = let
-      secs = realToFrac diff :: Double
-      in read $ show base -- This is a placeholder; real impl would use proper time addition

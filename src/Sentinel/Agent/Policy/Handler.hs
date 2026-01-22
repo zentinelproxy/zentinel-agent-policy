@@ -17,57 +17,34 @@ module Sentinel.Agent.Policy.Handler
   ) where
 
 import Control.Concurrent.STM
-import Control.Monad (when)
+import Control.Monad (when, forM_)
 import Control.Monad.IO.Class (liftIO)
-import Control.Monad.Reader (ReaderT, ask, runReaderT)
-import Data.Aeson (Value(..), object, (.=), encode)
+import Data.Aeson (Value(..))
 import qualified Data.Aeson as Aeson
 import qualified Data.ByteString.Lazy as LBS
+import Data.HashMap.Strict (HashMap)
+import qualified Data.HashMap.Strict as HM
 import Data.IORef
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Text (Text)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
-import Data.Time.Clock (getCurrentTime)
+import Data.Time.Clock.POSIX (getPOSIXTime)
+import Data.Word (Word32, Word64)
 import GHC.Generics (Generic)
 
+import Sentinel.Agent.Policy.Protocol
 import Sentinel.Agent.Policy.Cache (DecisionCache, CacheStats(..))
 import qualified Sentinel.Agent.Policy.Cache as Cache
 import Sentinel.Agent.Policy.Cedar (CedarEngine, newCedarEngine)
 import Sentinel.Agent.Policy.Config
+import qualified Sentinel.Agent.Policy.Config as Config
 import Sentinel.Agent.Policy.Engine
 import Sentinel.Agent.Policy.Input (extractInput)
 import Sentinel.Agent.Policy.Rego (RegoEngine, newRegoEngine)
-import Sentinel.Agent.Policy.Types
-
--- Placeholder for sentinel-agent-protocol types
--- In real implementation, these come from the SDK
-
--- | Agent capabilities declaration
-data AgentCapabilities = AgentCapabilities
-  { subscribedEvents :: ![Text]
-  , supportsMetrics :: !Bool
-  , supportsHealth :: !Bool
-  }
-  deriving stock (Eq, Show, Generic)
-
--- | Request headers event from Sentinel
-data RequestHeadersEvent = RequestHeadersEvent
-  { rheRequestId :: !Text
-  , rheMethod :: !Text
-  , rhePath :: !Text
-  , rheHeaders :: !(Map Text Text)
-  , rheQueryParams :: !(Map Text Text)
-  }
-  deriving stock (Eq, Show, Generic)
-
--- | Agent response
-data AgentResponse
-  = AllowResponse
-  | BlockResponse !Int !Text
-  | ModifyResponse !(Map Text Text)
-  deriving stock (Eq, Show, Generic)
+import Sentinel.Agent.Policy.Types hiding (Decision(..), policies, engine)
+import qualified Sentinel.Agent.Policy.Types as Policy
 
 -- | Policy agent state
 data PolicyAgent = PolicyAgent
@@ -75,36 +52,28 @@ data PolicyAgent = PolicyAgent
   , paCedar :: !CedarEngine
   , paRego :: !RegoEngine
   , paCache :: !DecisionCache
-  , paMetrics :: !(TVar PolicyMetrics)
+  , paEvaluationsTotal :: !(IORef Word64)
+  , paAllowTotal :: !(IORef Word64)
+  , paDenyTotal :: !(IORef Word64)
+  , paErrorsTotal :: !(IORef Word64)
+  , paInFlight :: !(IORef Word32)
+  , paEvalDurationNs :: !(IORef Word64)
   }
-
--- | Policy agent metrics
-data PolicyMetrics = PolicyMetrics
-  { pmEvaluationsTotal :: !Int
-  , pmAllowTotal :: !Int
-  , pmDenyTotal :: !Int
-  , pmCacheHits :: !Int
-  , pmCacheMisses :: !Int
-  , pmErrorsTotal :: !Int
-  , pmEvalDurationNs :: !Integer
-  }
-  deriving stock (Eq, Show, Generic)
 
 -- | Create a new policy agent
 newPolicyAgent :: AgentConfig -> IO PolicyAgent
 newPolicyAgent config = do
   cedarEngine <- newCedarEngine
   regoEngine <- newRegoEngine
-  cache <- Cache.newCache (cache config)
-  metrics <- newTVarIO $ PolicyMetrics 0 0 0 0 0 0 0
+  cacheInstance <- Cache.newCache (Sentinel.Agent.Policy.Config.cache config)
 
-  let agent = PolicyAgent
-        { paConfig = config
-        , paCedar = cedarEngine
-        , paRego = regoEngine
-        , paCache = cache
-        , paMetrics = metrics
-        }
+  agent <- PolicyAgent config cedarEngine regoEngine cacheInstance
+    <$> newIORef 0
+    <*> newIORef 0
+    <*> newIORef 0
+    <*> newIORef 0
+    <*> newIORef 0
+    <*> newIORef 0
 
   -- Load initial policies
   loadInitialPolicies agent
@@ -115,166 +84,234 @@ newPolicyAgent config = do
 loadInitialPolicies :: PolicyAgent -> IO ()
 loadInitialPolicies agent = do
   let configs = policies (paConfig agent)
-      engineType = engine (paConfig agent)
+      engineType' = engine (paConfig agent)
 
-  -- Load into appropriate engine based on config
-  case engineType of
-    CedarEngine -> do
-      results <- loadPolicies (paCedar agent) configs
-      mapM_ reportLoadError results
-    RegoEngine -> do
-      results <- loadPolicies (paRego agent) configs
-      mapM_ reportLoadError results
-    AutoEngine -> do
-      -- Load into both engines, they'll handle appropriate policies
-      _ <- loadPolicies (paCedar agent) configs
-      _ <- loadPolicies (paRego agent) configs
-      return ()
+  forM_ configs $ \policyConfig -> do
+    case pcType policyConfig of
+      "file" -> case pcPath policyConfig of
+        Just filePath -> do
+          content <- T.pack <$> readFile filePath
+          let eng = detectEngineFromPath filePath
+              policy = Policy
+                { policyId = T.pack filePath
+                , Policy.engine = eng
+                , Policy.content = content
+                , Policy.source = FileSource filePath
+                }
+          loadToEngine agent engineType' policy
+        Nothing -> putStrLn "Warning: file policy missing path"
 
+      "inline" -> case pcContent policyConfig of
+        Just content -> do
+          let policy = Policy
+                { policyId = "inline-policy"
+                , Policy.engine = engineType'
+                , Policy.content = content
+                , Policy.source = InlineSource content
+                }
+          loadToEngine agent engineType' policy
+        Nothing -> putStrLn "Warning: inline policy missing content"
+
+      other -> putStrLn $ "Warning: unknown policy type: " <> T.unpack other
+
+-- | Detect engine from file extension
+detectEngineFromPath :: FilePath -> PolicyEngine
+detectEngineFromPath path
+  | ".cedar" `T.isSuffixOf` T.pack path = CedarEngine
+  | ".rego" `T.isSuffixOf` T.pack path = RegoEngine
+  | otherwise = AutoEngine
+
+-- | Load a policy to the appropriate engine
+loadToEngine :: PolicyAgent -> PolicyEngine -> Policy -> IO ()
+loadToEngine agent engineType' policy = case engineType' of
+  CedarEngine -> do
+    result <- addPolicy (paCedar agent) policy
+    reportResult "Cedar" result
+  RegoEngine -> do
+    result <- addPolicy (paRego agent) policy
+    reportResult "Rego" result
+  AutoEngine -> do
+    case Policy.engine policy of
+      CedarEngine -> do
+        result <- addPolicy (paCedar agent) policy
+        reportResult "Cedar" result
+      RegoEngine -> do
+        result <- addPolicy (paRego agent) policy
+        reportResult "Rego" result
+      AutoEngine -> do
+        if "package " `T.isInfixOf` Policy.content policy
+          then do
+            result <- addPolicy (paRego agent) policy
+            reportResult "Rego" result
+          else do
+            result <- addPolicy (paCedar agent) policy
+            reportResult "Cedar" result
   where
-    reportLoadError (Left err) = putStrLn $ "Policy load error: " ++ show err
-    reportLoadError (Right _) = return ()
+    reportResult name (Left err) =
+      putStrLn $ "Error loading " <> name <> " policy: " <> show err
+    reportResult name (Right _) =
+      putStrLn $ "Loaded policy into " <> name <> " engine"
 
--- | Handle a request headers event
+-- | Handle request headers
 handleRequestHeaders :: PolicyAgent -> RequestHeadersEvent -> IO AgentResponse
 handleRequestHeaders agent event = do
+  atomicModifyIORef' (paInFlight agent) (\n -> (n + 1, ()))
+
+  let uri = reqHdrUri event
+      reqMethod = reqHdrMethod event
+      headers = reqHdrHeaders event
+
+  -- Convert headers to Map Text Text
+  let headerMap = Map.fromList
+        [ (T.toLower k, v) | (k, v) <- HM.toList headers ]
+
   -- Extract policy input from request
-  let input = extractInput
+  let policyInput = extractInput
         (inputMapping $ paConfig agent)
-        (rheMethod event)
-        (rhePath event)
-        (rheHeaders event)
-        (rheQueryParams event)
+        reqMethod
+        uri
+        headerMap
+        Map.empty
 
   -- Check cache first
-  cached <- if enabled (cache $ paConfig agent)
-    then Cache.lookup (paCache agent) input
+  cached <- if enabled (Sentinel.Agent.Policy.Config.cache $ paConfig agent)
+    then Cache.lookup (paCache agent) policyInput
     else return Nothing
 
   result <- case cached of
     Just cachedResult -> return $ Right cachedResult
     Nothing -> do
-      -- Evaluate policies
-      evalResult <- evaluatePolicy agent input
-
-      -- Cache the result
+      evalResult <- evaluatePolicy agent policyInput
       case evalResult of
-        Right r -> when (enabled $ cache $ paConfig agent) $
-          Cache.insert (paCache agent) input r
+        Right r -> when (enabled $ Sentinel.Agent.Policy.Config.cache $ paConfig agent) $
+          Cache.insert (paCache agent) policyInput r
         _ -> return ()
-
       return evalResult
 
   -- Update metrics and return response
+  atomicModifyIORef' (paInFlight agent) (\n -> (max 0 (n - 1), ()))
+
   case result of
-    Right EvaluationResult{..} -> do
-      atomically $ modifyTVar' (paMetrics agent) $ \m -> m
-        { pmEvaluationsTotal = pmEvaluationsTotal m + 1
-        , pmAllowTotal = if decision == Allow then pmAllowTotal m + 1 else pmAllowTotal m
-        , pmDenyTotal = if decision == Deny then pmDenyTotal m + 1 else pmDenyTotal m
-        , pmCacheHits = if cached then pmCacheHits m + 1 else pmCacheHits m
-        , pmCacheMisses = if not cached then pmCacheMisses m + 1 else pmCacheMisses m
-        , pmEvalDurationNs = pmEvalDurationNs m + evaluationTimeNs
+    Right evalResult -> do
+      atomicModifyIORef' (paEvaluationsTotal agent) (\n -> (n + 1, ()))
+      atomicModifyIORef' (paEvalDurationNs agent)
+        (\n -> (n + fromIntegral (evaluationTimeNs evalResult), ()))
+
+      case decision evalResult of
+        Policy.Allow -> do
+          atomicModifyIORef' (paAllowTotal agent) (\n -> (n + 1, ()))
+          return allow
+        Policy.Deny -> do
+          atomicModifyIORef' (paDenyTotal agent) (\n -> (n + 1, ()))
+          let msg = maybe "Access denied by policy" id (message $ reason evalResult)
+          return $ block 403 msg
+
+    Left _ -> do
+      atomicModifyIORef' (paErrorsTotal agent) (\n -> (n + 1, ()))
+      case defaultDecision (paConfig agent) of
+        Policy.Allow -> return allow
+        Policy.Deny -> return $ block 403 "Policy evaluation error"
+
+-- | Get health status
+getHealthStatus :: PolicyAgent -> IO HealthStatus
+getHealthStatus agent = do
+  timestamp <- getCurrentTimeMs
+  inFlight <- readIORef (paInFlight agent)
+  evaluations <- readIORef (paEvaluationsTotal agent)
+  denied <- readIORef (paDenyTotal agent)
+  errors <- readIORef (paErrorsTotal agent)
+  durationNs <- readIORef (paEvalDurationNs agent)
+
+  let avgLatencyMs = if evaluations > 0
+        then fromIntegral durationNs / fromIntegral evaluations / 1000000
+        else 0.0
+
+  let load = LoadMetrics
+        { loadInFlight = inFlight
+        , loadQueueDepth = 0
+        , loadAvgLatencyMs = avgLatencyMs
+        , loadRequestsProcessed = evaluations
+        , loadRequestsRejected = denied
         }
 
-      case decision of
-        Allow -> return AllowResponse
-        Deny -> return $ BlockResponse 403 $
-          maybe "Access denied by policy" id (message reason)
+  let status = if fromIntegral errors > evaluations `div` 10 || inFlight > 80
+        then "degraded"
+        else "healthy"
 
-    Left err -> do
-      atomically $ modifyTVar' (paMetrics agent) $ \m -> m
-        { pmErrorsTotal = pmErrorsTotal m + 1 }
+  return HealthStatus
+    { hsAgentId = "policy-agent-001"
+    , hsStatus = status
+    , hsTimestampMs = timestamp
+    , hsLoad = Just load
+    }
 
-      -- Use default decision on error
-      case defaultDecision (paConfig agent) of
-        Allow -> return AllowResponse
-        Deny -> return $ BlockResponse 403 "Policy evaluation error"
+-- | Get metrics report
+getMetricsReport :: PolicyAgent -> IO (Maybe MetricsReport)
+getMetricsReport agent = do
+  timestamp <- getCurrentTimeMs
+  evaluations <- readIORef (paEvaluationsTotal agent)
+  allowed <- readIORef (paAllowTotal agent)
+  denied <- readIORef (paDenyTotal agent)
+  errors <- readIORef (paErrorsTotal agent)
+  inFlight <- readIORef (paInFlight agent)
+  cacheStats <- Cache.getStats (paCache agent)
+
+  return $ Just MetricsReport
+    { mrAgentId = "policy-agent-001"
+    , mrTimestampMs = timestamp
+    , mrCounters =
+        [ counterMetric "policy_evaluations_total" evaluations
+        , counterMetric "policy_allow_total" allowed
+        , counterMetric "policy_deny_total" denied
+        , counterMetric "policy_cache_hits_total" (fromIntegral $ csHits cacheStats)
+        , counterMetric "policy_cache_misses_total" (fromIntegral $ csMisses cacheStats)
+        , counterMetric "policy_errors_total" errors
+        ]
+    , mrGauges =
+        [ gaugeMetric "policy_in_flight" (fromIntegral inFlight)
+        , gaugeMetric "policy_cache_entries" (fromIntegral $ csEntries cacheStats)
+        ]
+    }
+
+-- | Get current time in milliseconds
+getCurrentTimeMs :: IO Word64
+getCurrentTimeMs = do
+  t <- getPOSIXTime
+  return $ round (t * 1000)
 
 -- | Evaluate policy using configured engine
 evaluatePolicy :: PolicyAgent -> PolicyInput -> IO (Either EngineError EvaluationResult)
 evaluatePolicy agent input = case engine (paConfig agent) of
-  CedarEngine -> evaluate (paCedar agent) input
-  RegoEngine -> evaluate (paRego agent) input
+  CedarEngine -> Sentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
+  RegoEngine -> Sentinel.Agent.Policy.Engine.evaluate (paRego agent) input
   AutoEngine -> do
-    -- Try Cedar first, fall back to Rego
-    cedarResult <- evaluate (paCedar agent) input
+    cedarResult <- Sentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
     case cedarResult of
       Right r -> return $ Right r
-      Left _ -> evaluate (paRego agent) input
+      Left _ -> Sentinel.Agent.Policy.Engine.evaluate (paRego agent) input
 
--- | Get health status
-getHealthStatus :: PolicyAgent -> IO Value
-getHealthStatus agent = do
-  cedarPolicies <- getPolicyInfo (paCedar agent)
-  regoPolicies <- getPolicyInfo (paRego agent)
-  metrics <- readTVarIO (paMetrics agent)
-
-  return $ object
-    [ "status" .= ("healthy" :: Text)
-    , "cedar_policies" .= length cedarPolicies
-    , "rego_policies" .= length regoPolicies
-    , "evaluations_total" .= pmEvaluationsTotal metrics
-    , "error_rate" .= calculateErrorRate metrics
-    ]
-
-  where
-    calculateErrorRate m =
-      if pmEvaluationsTotal m == 0
-        then 0.0 :: Double
-        else fromIntegral (pmErrorsTotal m) / fromIntegral (pmEvaluationsTotal m)
-
--- | Get Prometheus metrics
-getMetrics :: PolicyAgent -> IO Text
-getMetrics agent = do
-  metrics <- readTVarIO (paMetrics agent)
-  cacheStats <- Cache.getStats (paCache agent)
-
-  return $ T.unlines
-    [ "# HELP policy_evaluations_total Total number of policy evaluations"
-    , "# TYPE policy_evaluations_total counter"
-    , "policy_evaluations_total " <> T.pack (show $ pmEvaluationsTotal metrics)
-    , ""
-    , "# HELP policy_decisions_total Policy decisions by result"
-    , "# TYPE policy_decisions_total counter"
-    , "policy_decisions_total{result=\"allow\"} " <> T.pack (show $ pmAllowTotal metrics)
-    , "policy_decisions_total{result=\"deny\"} " <> T.pack (show $ pmDenyTotal metrics)
-    , ""
-    , "# HELP policy_cache_hits_total Cache hits"
-    , "# TYPE policy_cache_hits_total counter"
-    , "policy_cache_hits_total " <> T.pack (show $ csHits cacheStats)
-    , ""
-    , "# HELP policy_cache_misses_total Cache misses"
-    , "# TYPE policy_cache_misses_total counter"
-    , "policy_cache_misses_total " <> T.pack (show $ csMisses cacheStats)
-    , ""
-    , "# HELP policy_errors_total Policy evaluation errors"
-    , "# TYPE policy_errors_total counter"
-    , "policy_errors_total " <> T.pack (show $ pmErrorsTotal metrics)
-    ]
-
--- | Run the policy agent (placeholder for actual SDK integration)
+-- | Run the policy agent
 runPolicyAgent :: AgentConfig -> IO ()
 runPolicyAgent config = do
   agent <- newPolicyAgent config
   putStrLn $ "Policy agent starting on " ++ socketPath config
   putStrLn $ "Engine: " ++ show (engine config)
-  putStrLn $ "Loaded " ++ show (length $ policies config) ++ " policy source(s)"
+  putStrLn $ "Policies: " ++ show (length $ policies config)
 
-  -- In real implementation, this would:
-  -- 1. Create Unix socket at socketPath
-  -- 2. Listen for Sentinel v2 protocol messages
-  -- 3. Dispatch to handleRequestHeaders, getHealthStatus, getMetrics
-  -- 4. Send responses back over socket
+  let serverConfig = defaultServerConfig
+        { scSocketPath = Just (socketPath config)
+        , scLogLevel = case logLevel config of
+            "debug" -> Debug
+            "warn"  -> Warn
+            "error" -> Error
+            _       -> Info
+        }
 
-  -- For now, just keep running
-  putStrLn "Agent ready, waiting for requests..."
-  waitForever
+  let handler = AgentHandler
+        { ahCapabilities = return $ defaultCapabilities "policy-agent"
+        , ahOnRequestHeaders = handleRequestHeaders agent
+        , ahHealthStatus = getHealthStatus agent
+        , ahMetricsReport = getMetricsReport agent
+        }
 
-  where
-    waitForever = do
-      threadDelay 1000000000  -- Sleep for ~16 minutes
-      waitForever
-
-    threadDelay :: Int -> IO ()
-    threadDelay _ = return ()  -- Placeholder
+  runAgent serverConfig handler

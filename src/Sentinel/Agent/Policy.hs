@@ -35,16 +35,25 @@
 --   enabled: true
 --   ttl_seconds: 60
 -- @
+--
+-- = Requirements
+--
+-- This agent requires external CLI tools for policy evaluation:
+--
+-- * For Cedar policies: @cedar@ CLI (<https://github.com/cedar-policy/cedar>)
+-- * For Rego policies: @opa@ CLI (<https://www.openpolicyagent.org/docs/latest/#running-opa>)
 
 module Sentinel.Agent.Policy
   ( -- * Running the Agent
     runPolicyAgent
   , newPolicyAgent
+  , PolicyAgent
 
     -- * Configuration
   , AgentConfig(..)
   , CacheConfig(..)
   , AuditConfig(..)
+  , PolicyConfig(..)
   , loadConfig
   , defaultConfig
   , parseCLIOptions
@@ -52,15 +61,25 @@ module Sentinel.Agent.Policy
 
     -- * Types
   , Decision(..)
+  , DecisionReason(..)
   , PolicyInput(..)
-  , Principal(..)
-  , Resource(..)
-  , Action(..)
+  , Principal(Principal, principalId, principalType)
+  , Resource(Resource, resourceId, resourceType, path)
+  , Action(Action, actionName, method)
   , EvaluationResult(..)
   , PolicyEngine(..)
+  , PolicySource(..)
+  , Policy(Policy, policyId, content, source)
+
+    -- * Input Mapping
+  , InputMapping(..)
+  , PrincipalMapping(..)
+  , ResourceMapping(..)
+  , ActionMapping(..)
 
     -- * Policy Engines
   , Engine(..)
+  , EngineError(..)
   , CedarEngine
   , RegoEngine
   , newCedarEngine
@@ -69,15 +88,13 @@ module Sentinel.Agent.Policy
     -- * Caching
   , DecisionCache
   , CacheStats(..)
-
-    -- * Re-exports
-  , module Sentinel.Agent.Policy.Types
+  , newCache
   ) where
 
-import Sentinel.Agent.Policy.Cache (DecisionCache, CacheStats(..))
+import Sentinel.Agent.Policy.Cache (DecisionCache, CacheStats(..), newCache)
 import Sentinel.Agent.Policy.Cedar (CedarEngine, newCedarEngine)
 import Sentinel.Agent.Policy.Config
-import Sentinel.Agent.Policy.Engine (Engine(..))
+import Sentinel.Agent.Policy.Engine (Engine(..), EngineError(..))
 import Sentinel.Agent.Policy.Handler (PolicyAgent, newPolicyAgent, runPolicyAgent)
 import Sentinel.Agent.Policy.Rego (RegoEngine, newRegoEngine)
 import Sentinel.Agent.Policy.Types

@@ -21,8 +21,6 @@ module Sentinel.Agent.Policy.Input
 
 import Data.Aeson (Value(..), object, (.=))
 import qualified Data.Aeson as Aeson
-import Data.CaseInsensitive (CI)
-import qualified Data.CaseInsensitive as CI
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, listToMaybe)
@@ -152,6 +150,6 @@ isVariable t = T.isPrefixOf "{" t && T.isSuffixOf "}" t
 -- | Build context map from headers and query params
 buildContext :: Map Text Text -> Map Text Text -> Map Text Value
 buildContext headers queryParams = Map.fromList
-  [ ("headers", Object $ Aeson.toJSON headers)
-  , ("query", Object $ Aeson.toJSON queryParams)
+  [ ("headers", Aeson.toJSON headers)
+  , ("query", Aeson.toJSON queryParams)
   ]

@@ -24,6 +24,7 @@ module Sentinel.Agent.Policy.Engine
 import Control.Exception (Exception)
 import Data.Text (Text)
 import qualified Data.Text as T
+import Sentinel.Agent.Policy.Config (PolicyConfig(..))
 import Sentinel.Agent.Policy.Types
 
 -- | Errors that can occur during policy evaluation
