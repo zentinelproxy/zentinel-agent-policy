@@ -10,10 +10,9 @@ Policy evaluation agent for [Sentinel](https://github.com/raskell-io/sentinel) r
 - **Multi-Engine Support** - Rego (OPA) and Cedar policy languages
 - **Request Context Evaluation** - Full access to request metadata, headers, path, method
 - **Flexible Policy Loading** - File-based, inline, or remote policy bundles
-- **Hot Reload** - Update policies without restarting the agent
 - **Audit Logging** - Detailed decision audit trail with matched rules
 - **Caching** - Optional decision caching for performance
-- **Pure Haskell** - No external runtime dependencies for Cedar; OPA via embedded engine
+- **Written in Haskell** - Delegates to `cedar` and `opa` CLI tools for evaluation (must be installed separately)
 
 ## Installation
 
@@ -46,6 +45,15 @@ sentinel-policy-agent --socket /var/run/sentinel/policy.sock --config policy.yam
 | `--engine` | `POLICY_ENGINE` | Policy engine (`cedar`, `rego`, `auto`) | `auto` |
 | `--policy-dir` | `POLICY_DIR` | Directory containing policy files | - |
 | `--log-level` | `LOG_LEVEL` | Log level (`debug`, `info`, `warn`, `error`) | `info` |
+
+## Requirements
+
+This agent requires external CLI tools for policy evaluation:
+
+- **For Cedar policies**: Install the [cedar CLI](https://github.com/cedar-policy/cedar) (`cargo install cedar-policy-cli`)
+- **For Rego policies**: Install the [opa CLI](https://www.openpolicyagent.org/docs/latest/#running-opa)
+
+The agent writes temporary files and invokes these tools per evaluation (with caching to reduce overhead).
 
 ## Configuration
 
@@ -219,7 +227,7 @@ routes {
 │  │  ┌─────────────┐              ┌─────────────┐             │  │
 │  │  │   Cedar     │              │    Rego     │             │  │
 │  │  │  Evaluator  │              │  Evaluator  │             │  │
-│  │  │  (native)   │              │  (via OPA)  │             │  │
+│  │  │  (via CLI)  │              │  (via OPA)  │             │  │
 │  │  └─────────────┘              └─────────────┘             │  │
 │  └─────────────────────────┬─────────────────────────────────┘  │
 │                            │                                     │
