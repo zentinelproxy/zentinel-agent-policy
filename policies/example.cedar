@@ -1,4 +1,4 @@
-// Example Cedar policies for Sentinel authorization
+// Example Cedar policies for Zentinel authorization
 // See: https://www.cedarpolicy.com/
 
 // Allow authenticated users to read public resources

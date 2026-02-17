@@ -1,6 +1,6 @@
 -- |
 -- Module      : Main
--- Description : CLI entry point for sentinel-policy-agent
+-- Description : CLI entry point for zentinel-policy-agent
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
 
@@ -13,7 +13,7 @@ import System.Environment (lookupEnv)
 import System.Exit (exitFailure)
 import System.IO (hPutStrLn, stderr)
 
-import Sentinel.Agent.Policy
+import Zentinel.Agent.Policy
 
 main :: IO ()
 main = do
@@ -25,8 +25,8 @@ main = do
 
   -- Print startup banner
   TIO.putStrLn "╔═══════════════════════════════════════════════════════════╗"
-  TIO.putStrLn "║         sentinel-policy-agent v0.1.0                      ║"
-  TIO.putStrLn "║         Policy evaluation for Sentinel proxy              ║"
+  TIO.putStrLn "║         zentinel-policy-agent v0.1.0                      ║"
+  TIO.putStrLn "║         Policy evaluation for Zentinel proxy              ║"
   TIO.putStrLn "╚═══════════════════════════════════════════════════════════╝"
   TIO.putStrLn ""
   TIO.putStrLn $ "Engine:  " <> T.pack (show $ engine config)

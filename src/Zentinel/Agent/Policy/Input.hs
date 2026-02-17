@@ -1,13 +1,13 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Input
+-- Module      : Zentinel.Agent.Policy.Input
 -- Description : Request to policy input mapping
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
 --
 -- Functions for extracting policy input (principal, action, resource)
--- from incoming Sentinel agent requests.
+-- from incoming Zentinel agent requests.
 
-module Sentinel.Agent.Policy.Input
+module Zentinel.Agent.Policy.Input
   ( -- * Input Extraction
     extractInput
   , extractPrincipal
@@ -26,8 +26,8 @@ import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Sentinel.Agent.Policy.Config
-import Sentinel.Agent.Policy.Types
+import Zentinel.Agent.Policy.Config
+import Zentinel.Agent.Policy.Types
 
 -- | Result of path pattern matching
 data PathMatch = PathMatch

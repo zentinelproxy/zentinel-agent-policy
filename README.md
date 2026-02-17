@@ -1,8 +1,8 @@
-# sentinel-agent-policy
+# zentinel-agent-policy
 
-Policy evaluation agent for [Sentinel](https://github.com/raskell-io/sentinel) reverse proxy. Supports multiple policy languages including [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) (OPA) and [Cedar](https://www.cedarpolicy.com/).
+Policy evaluation agent for [Zentinel](https://github.com/zentinelproxy/zentinel) reverse proxy. Supports multiple policy languages including [Rego](https://www.openpolicyagent.org/docs/latest/policy-language/) (OPA) and [Cedar](https://www.cedarpolicy.com/).
 
-[![Hackage](https://img.shields.io/hackage/v/sentinel-agent-policy.svg)](https://hackage.haskell.org/package/sentinel-agent-policy)
+[![Hackage](https://img.shields.io/hackage/v/zentinel-agent-policy.svg)](https://hackage.haskell.org/package/zentinel-agent-policy)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 ## Features
@@ -19,28 +19,28 @@ Policy evaluation agent for [Sentinel](https://github.com/raskell-io/sentinel) r
 ### From Hackage
 
 ```bash
-cabal install sentinel-agent-policy
+cabal install zentinel-agent-policy
 ```
 
 ### From source
 
 ```bash
-git clone https://github.com/raskell-io/sentinel-agent-policy
-cd sentinel-agent-policy
+git clone https://github.com/zentinelproxy/zentinel-agent-policy
+cd zentinel-agent-policy
 cabal build
 ```
 
 ## Usage
 
 ```bash
-sentinel-policy-agent --socket /var/run/sentinel/policy.sock --config policy.yaml
+zentinel-policy-agent --socket /var/run/zentinel/policy.sock --config policy.yaml
 ```
 
 ### Command Line Options
 
 | Option | Environment Variable | Description | Default |
 |--------|---------------------|-------------|---------|
-| `--socket` | `AGENT_SOCKET` | Unix socket path | `/tmp/sentinel-policy.sock` |
+| `--socket` | `AGENT_SOCKET` | Unix socket path | `/tmp/zentinel-policy.sock` |
 | `--config` | `POLICY_CONFIG` | Configuration file path | - |
 | `--engine` | `POLICY_ENGINE` | Policy engine (`cedar`, `rego`, `auto`) | `auto` |
 | `--policy-dir` | `POLICY_DIR` | Directory containing policy files | - |
@@ -67,7 +67,7 @@ engine: cedar  # or "rego" or "auto"
 policies:
   # File-based policies
   - type: file
-    path: /etc/sentinel/policies/authz.cedar
+    path: /etc/zentinel/policies/authz.cedar
 
   # Inline policy
   - type: inline
@@ -151,7 +151,7 @@ forbid(
 ### Rego Policy Example
 
 ```rego
-package sentinel.authz
+package zentinel.authz
 
 default allow := false
 
@@ -187,15 +187,15 @@ decision := "deny" {
 }
 ```
 
-### Sentinel Proxy Configuration
+### Zentinel Proxy Configuration
 
-Add to your Sentinel `config.kdl`:
+Add to your Zentinel `config.kdl`:
 
 ```kdl
 agents {
     agent "policy" {
         type "custom"
-        unix-socket path="/var/run/sentinel/policy.sock"
+        unix-socket path="/var/run/zentinel/policy.sock"
         events "request_headers"
         timeout-ms 100
         failure-mode "closed"  # Deny on policy engine failure
@@ -215,7 +215,7 @@ routes {
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    sentinel-agent-policy                         │
+│                    zentinel-agent-policy                         │
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │                    Request Handler                         │  │
 │  │  • Extract principal, action, resource from request        │  │
@@ -238,7 +238,7 @@ routes {
                                │ Unix Socket (v2 Protocol)
                                ▼
                     ┌─────────────────────┐
-                    │   Sentinel Proxy    │
+                    │   Zentinel Proxy    │
                     └─────────────────────┘
 ```
 
@@ -272,17 +272,17 @@ cabal build
 cabal test
 
 # Run with debug logging
-cabal run sentinel-policy-agent -- --socket /tmp/policy.sock --log-level debug
+cabal run zentinel-policy-agent -- --socket /tmp/policy.sock --log-level debug
 ```
 
 ### Project Structure
 
 ```
-sentinel-agent-policy/
+zentinel-agent-policy/
 ├── app/
 │   └── Main.hs              # CLI entry point
 ├── src/
-│   └── Sentinel/
+│   └── Zentinel/
 │       └── Agent/
 │           └── Policy/
 │               ├── Config.hs      # Configuration types
@@ -297,7 +297,7 @@ sentinel-agent-policy/
 ├── policies/                 # Example policies
 │   ├── example.cedar
 │   └── example.rego
-├── sentinel-agent-policy.cabal
+├── zentinel-agent-policy.cabal
 ├── cabal.project
 └── README.md
 ```
@@ -308,4 +308,4 @@ Apache-2.0
 
 ## Contributing
 
-Contributions welcome! Please see the [Sentinel contributing guide](https://sentinel.raskell.io/docs/contributing).
+Contributions welcome! Please see the [Zentinel contributing guide](https://zentinelproxy.io/docs/contributing).

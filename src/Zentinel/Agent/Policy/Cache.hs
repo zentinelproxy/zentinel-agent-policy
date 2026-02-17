@@ -1,5 +1,5 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Cache
+-- Module      : Zentinel.Agent.Policy.Cache
 -- Description : Decision caching for performance
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
@@ -7,7 +7,7 @@
 -- LRU cache for policy decisions to reduce evaluation overhead
 -- for repeated similar requests.
 
-module Sentinel.Agent.Policy.Cache
+module Zentinel.Agent.Policy.Cache
   ( -- * Cache Types
     DecisionCache
   , CacheStats(..)
@@ -35,8 +35,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Time.Clock (UTCTime, getCurrentTime, diffUTCTime, addUTCTime, NominalDiffTime)
 import GHC.Generics (Generic)
-import Sentinel.Agent.Policy.Config (CacheConfig(..))
-import Sentinel.Agent.Policy.Types
+import Zentinel.Agent.Policy.Config (CacheConfig(..))
+import Zentinel.Agent.Policy.Types
 
 -- | Cache key derived from policy input
 newtype CacheKey = CacheKey { unCacheKey :: Int }

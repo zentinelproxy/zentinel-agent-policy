@@ -10,9 +10,9 @@ import Control.Concurrent (threadDelay)
 import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 
-import Sentinel.Agent.Policy
-import Sentinel.Agent.Policy.Cache qualified as Cache
-import Sentinel.Agent.Policy.Types (Principal(..), Resource(..), Action(..))
+import Zentinel.Agent.Policy
+import Zentinel.Agent.Policy.Cache qualified as Cache
+import Zentinel.Agent.Policy.Types (Principal(..), Resource(..), Action(..))
 
 spec :: Spec
 spec = do
@@ -55,7 +55,7 @@ spec = do
       case result of
         Just r -> do
           decision r `shouldBe` Allow
-          Sentinel.Agent.Policy.cached r `shouldBe` True
+          Zentinel.Agent.Policy.cached r `shouldBe` True
         Nothing -> expectationFailure "Expected cache hit"
 
       stats <- Cache.getStats cache

@@ -9,8 +9,8 @@ import Data.Map.Strict qualified as Map
 import Data.Text qualified as T
 import System.Directory (findExecutable)
 
-import Sentinel.Agent.Policy
-import Sentinel.Agent.Policy.Types (Policy(..), Principal(..), Resource(..), Action(..))
+import Zentinel.Agent.Policy
+import Zentinel.Agent.Policy.Types (Policy(..), Principal(..), Resource(..), Action(..))
 
 spec :: Spec
 spec = do
@@ -24,23 +24,23 @@ spec = do
       engine <- newRegoEngine
       let policy = Policy
             { policyId = "test-policy"
-            , Sentinel.Agent.Policy.Types.engine = RegoEngine
-            , content = "package sentinel.authz\n\ndefault allow := false"
-            , source = InlineSource "package sentinel.authz\n\ndefault allow := false"
+            , Zentinel.Agent.Policy.Types.engine = RegoEngine
+            , content = "package zentinel.authz\n\ndefault allow := false"
+            , source = InlineSource "package zentinel.authz\n\ndefault allow := false"
             }
       result <- addPolicy engine policy
       result `shouldBe` Right ()
 
       policies <- getPolicyInfo engine
       case policies of
-        [(_, pkg)] -> pkg `shouldBe` "sentinel.authz"
+        [(_, pkg)] -> pkg `shouldBe` "zentinel.authz"
         _ -> expectationFailure "Expected one policy"
 
     it "clears policies" $ do
       engine <- newRegoEngine
       let policy = Policy
             { policyId = "test-policy"
-            , Sentinel.Agent.Policy.Types.engine = RegoEngine
+            , Zentinel.Agent.Policy.Types.engine = RegoEngine
             , content = "package test\n\ndefault allow := false"
             , source = InlineSource "package test\n\ndefault allow := false"
             }
@@ -68,9 +68,9 @@ spec = do
             engine <- newRegoEngine
             let policy = Policy
                   { policyId = "allow-all"
-                  , Sentinel.Agent.Policy.Types.engine = RegoEngine
+                  , Zentinel.Agent.Policy.Types.engine = RegoEngine
                   , content = T.unlines
-                      [ "package sentinel.authz"
+                      [ "package zentinel.authz"
                       , ""
                       , "default allow := true"
                       ]
@@ -89,9 +89,9 @@ spec = do
             engine <- newRegoEngine
             let policy = Policy
                   { policyId = "deny-all"
-                  , Sentinel.Agent.Policy.Types.engine = RegoEngine
+                  , Zentinel.Agent.Policy.Types.engine = RegoEngine
                   , content = T.unlines
-                      [ "package sentinel.authz"
+                      [ "package zentinel.authz"
                       , ""
                       , "default allow := false"
                       ]
@@ -110,9 +110,9 @@ spec = do
             engine <- newRegoEngine
             let policy = Policy
                   { policyId = "conditional"
-                  , Sentinel.Agent.Policy.Types.engine = RegoEngine
+                  , Zentinel.Agent.Policy.Types.engine = RegoEngine
                   , content = T.unlines
-                      [ "package sentinel.authz"
+                      [ "package zentinel.authz"
                       , ""
                       , "default allow := false"
                       , ""

@@ -12,8 +12,8 @@ import System.Directory (findExecutable)
 import System.IO.Temp (withSystemTempDirectory)
 import Data.Text.IO qualified as TIO
 
-import Sentinel.Agent.Policy
-import Sentinel.Agent.Policy.Types (Policy(..), Principal(..), Resource(..), Action(..))
+import Zentinel.Agent.Policy
+import Zentinel.Agent.Policy.Types (Policy(..), Principal(..), Resource(..), Action(..))
 
 spec :: Spec
 spec = do
@@ -27,7 +27,7 @@ spec = do
       engine <- newCedarEngine
       let policy = Policy
             { policyId = "test-policy"
-            , Sentinel.Agent.Policy.Types.engine = CedarEngine
+            , Zentinel.Agent.Policy.Types.engine = CedarEngine
             , content = "permit(principal, action, resource);"
             , source = InlineSource "permit(principal, action, resource);"
             }
@@ -41,7 +41,7 @@ spec = do
       engine <- newCedarEngine
       let policy = Policy
             { policyId = "test-policy"
-            , Sentinel.Agent.Policy.Types.engine = CedarEngine
+            , Zentinel.Agent.Policy.Types.engine = CedarEngine
             , content = "permit(principal, action, resource);"
             , source = InlineSource "permit(principal, action, resource);"
             }
@@ -69,7 +69,7 @@ spec = do
             engine <- newCedarEngine
             let policy = Policy
                   { policyId = "allow-all"
-                  , Sentinel.Agent.Policy.Types.engine = CedarEngine
+                  , Zentinel.Agent.Policy.Types.engine = CedarEngine
                   , content = "permit(principal, action, resource);"
                   , source = InlineSource "permit(principal, action, resource);"
                   }
@@ -86,7 +86,7 @@ spec = do
             engine <- newCedarEngine
             let policy = Policy
                   { policyId = "deny-all"
-                  , Sentinel.Agent.Policy.Types.engine = CedarEngine
+                  , Zentinel.Agent.Policy.Types.engine = CedarEngine
                   , content = "forbid(principal, action, resource);"
                   , source = InlineSource "forbid(principal, action, resource);"
                   }

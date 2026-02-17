@@ -1,13 +1,13 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Handler
--- Description : Sentinel agent handler implementation
+-- Module      : Zentinel.Agent.Policy.Handler
+-- Description : Zentinel agent handler implementation
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
 --
--- Implementation of the Sentinel agent handler for policy evaluation
+-- Implementation of the Zentinel agent handler for policy evaluation
 -- using the v2 agent protocol.
 
-module Sentinel.Agent.Policy.Handler
+module Zentinel.Agent.Policy.Handler
   ( -- * Agent Types
     PolicyAgent(..)
   , newPolicyAgent
@@ -34,17 +34,17 @@ import Data.Time.Clock.POSIX (getPOSIXTime)
 import Data.Word (Word32, Word64)
 import GHC.Generics (Generic)
 
-import Sentinel.Agent.Policy.Protocol
-import Sentinel.Agent.Policy.Cache (DecisionCache, CacheStats(..))
-import qualified Sentinel.Agent.Policy.Cache as Cache
-import Sentinel.Agent.Policy.Cedar (CedarEngine, newCedarEngine)
-import Sentinel.Agent.Policy.Config
-import qualified Sentinel.Agent.Policy.Config as Config
-import Sentinel.Agent.Policy.Engine
-import Sentinel.Agent.Policy.Input (extractInput)
-import Sentinel.Agent.Policy.Rego (RegoEngine, newRegoEngine)
-import Sentinel.Agent.Policy.Types hiding (Decision(..), policies, engine)
-import qualified Sentinel.Agent.Policy.Types as Policy
+import Zentinel.Agent.Policy.Protocol
+import Zentinel.Agent.Policy.Cache (DecisionCache, CacheStats(..))
+import qualified Zentinel.Agent.Policy.Cache as Cache
+import Zentinel.Agent.Policy.Cedar (CedarEngine, newCedarEngine)
+import Zentinel.Agent.Policy.Config
+import qualified Zentinel.Agent.Policy.Config as Config
+import Zentinel.Agent.Policy.Engine
+import Zentinel.Agent.Policy.Input (extractInput)
+import Zentinel.Agent.Policy.Rego (RegoEngine, newRegoEngine)
+import Zentinel.Agent.Policy.Types hiding (Decision(..), policies, engine)
+import qualified Zentinel.Agent.Policy.Types as Policy
 
 -- | Policy agent state
 data PolicyAgent = PolicyAgent
@@ -65,7 +65,7 @@ newPolicyAgent :: AgentConfig -> IO PolicyAgent
 newPolicyAgent config = do
   cedarEngine <- newCedarEngine
   regoEngine <- newRegoEngine
-  cacheInstance <- Cache.newCache (Sentinel.Agent.Policy.Config.cache config)
+  cacheInstance <- Cache.newCache (Zentinel.Agent.Policy.Config.cache config)
 
   agent <- PolicyAgent config cedarEngine regoEngine cacheInstance
     <$> newIORef 0
@@ -174,7 +174,7 @@ handleRequestHeaders agent event = do
         Map.empty
 
   -- Check cache first
-  cached <- if enabled (Sentinel.Agent.Policy.Config.cache $ paConfig agent)
+  cached <- if enabled (Zentinel.Agent.Policy.Config.cache $ paConfig agent)
     then Cache.lookup (paCache agent) policyInput
     else return Nothing
 
@@ -183,7 +183,7 @@ handleRequestHeaders agent event = do
     Nothing -> do
       evalResult <- evaluatePolicy agent policyInput
       case evalResult of
-        Right r -> when (enabled $ Sentinel.Agent.Policy.Config.cache $ paConfig agent) $
+        Right r -> when (enabled $ Zentinel.Agent.Policy.Config.cache $ paConfig agent) $
           Cache.insert (paCache agent) policyInput r
         _ -> return ()
       return evalResult
@@ -282,13 +282,13 @@ getCurrentTimeMs = do
 -- | Evaluate policy using configured engine
 evaluatePolicy :: PolicyAgent -> PolicyInput -> IO (Either EngineError EvaluationResult)
 evaluatePolicy agent input = case engine (paConfig agent) of
-  CedarEngine -> Sentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
-  RegoEngine -> Sentinel.Agent.Policy.Engine.evaluate (paRego agent) input
+  CedarEngine -> Zentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
+  RegoEngine -> Zentinel.Agent.Policy.Engine.evaluate (paRego agent) input
   AutoEngine -> do
-    cedarResult <- Sentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
+    cedarResult <- Zentinel.Agent.Policy.Engine.evaluate (paCedar agent) input
     case cedarResult of
       Right r -> return $ Right r
-      Left _ -> Sentinel.Agent.Policy.Engine.evaluate (paRego agent) input
+      Left _ -> Zentinel.Agent.Policy.Engine.evaluate (paRego agent) input
 
 -- | Run the policy agent
 runPolicyAgent :: AgentConfig -> IO ()

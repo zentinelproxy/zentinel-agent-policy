@@ -1,7 +1,7 @@
-# Example Rego policies for Sentinel authorization
+# Example Rego policies for Zentinel authorization
 # See: https://www.openpolicyagent.org/docs/latest/policy-language/
 
-package sentinel.authz
+package zentinel.authz
 
 import rego.v1
 

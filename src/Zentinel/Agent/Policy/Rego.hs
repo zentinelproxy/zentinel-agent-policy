@@ -1,5 +1,5 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Rego
+-- Module      : Zentinel.Agent.Policy.Rego
 -- Description : Rego/OPA policy engine implementation
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
@@ -12,7 +12,7 @@
 --
 -- See: https://www.openpolicyagent.org/docs/latest/policy-language/
 
-module Sentinel.Agent.Policy.Rego
+module Zentinel.Agent.Policy.Rego
   ( -- * Rego Engine
     RegoEngine(..)
   , newRegoEngine
@@ -46,15 +46,15 @@ import System.IO.Temp (withSystemTempDirectory)
 import System.Process (readProcessWithExitCode)
 
 import qualified Data.Vector as V
-import Sentinel.Agent.Policy.Engine
-import Sentinel.Agent.Policy.Types hiding (RegoEngine)
-import qualified Sentinel.Agent.Policy.Types as Types
+import Zentinel.Agent.Policy.Engine
+import Zentinel.Agent.Policy.Types hiding (RegoEngine)
+import qualified Zentinel.Agent.Policy.Types as Types
 
 -- | A parsed Rego policy
 data RegoPolicy = RegoPolicy
   { rpId :: !Text
   , rpPackage :: !Text
-    -- ^ Rego package name (e.g., "sentinel.authz")
+    -- ^ Rego package name (e.g., "zentinel.authz")
   , rpContent :: !Text
   , rpFilePath :: !(Maybe FilePath)
   }
@@ -79,7 +79,7 @@ data RegoEngine = RegoEngine
     -- ^ Static data available to policies
   , reBundles :: !(TVar (Map Text RegoBundle))
   , reQueryPath :: !(TVar Text)
-    -- ^ The Rego query path for evaluation (e.g., "data.sentinel.authz.allow")
+    -- ^ The Rego query path for evaluation (e.g., "data.zentinel.authz.allow")
   }
 
 -- | Create a new Rego engine instance
@@ -88,7 +88,7 @@ newRegoEngine = RegoEngine
   <$> newTVarIO Map.empty
   <*> newTVarIO (Object mempty)
   <*> newTVarIO Map.empty
-  <*> newTVarIO "data.sentinel.authz.allow"
+  <*> newTVarIO "data.zentinel.authz.allow"
 
 instance Engine RegoEngine where
   evaluate = evaluateRego
@@ -208,7 +208,7 @@ buildOpaInput PolicyInput{..} staticData =
 runOpaEval
   :: [Text]         -- ^ Policy contents
   -> Value          -- ^ Input JSON
-  -> Text           -- ^ Query path (e.g., "data.sentinel.authz.allow")
+  -> Text           -- ^ Query path (e.g., "data.zentinel.authz.allow")
   -> IO (Either EngineError (Decision, [Text]))
 runOpaEval policyContents input queryPath = do
   withSystemTempDirectory "opa-eval" $ \tmpDir -> do
@@ -258,7 +258,7 @@ writePolicyFile tmpDir (idx, policyContent) = do
 --       "expressions": [
 --         {
 --           "value": true,  // or false
---           "text": "data.sentinel.authz.allow",
+--           "text": "data.zentinel.authz.allow",
 --           "location": {...}
 --         }
 --       ]

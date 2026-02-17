@@ -1,5 +1,5 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Engine
+-- Module      : Zentinel.Agent.Policy.Engine
 -- Description : Policy engine interface and factory
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
@@ -7,7 +7,7 @@
 -- Abstract interface for policy engines and factory for creating
 -- the appropriate engine based on configuration.
 
-module Sentinel.Agent.Policy.Engine
+module Zentinel.Agent.Policy.Engine
   ( -- * Engine Interface
     Engine(..)
   , EngineError(..)
@@ -24,8 +24,8 @@ module Sentinel.Agent.Policy.Engine
 import Control.Exception (Exception)
 import Data.Text (Text)
 import qualified Data.Text as T
-import Sentinel.Agent.Policy.Config (PolicyConfig(..))
-import Sentinel.Agent.Policy.Types
+import Zentinel.Agent.Policy.Config (PolicyConfig(..))
+import Zentinel.Agent.Policy.Types
 
 -- | Errors that can occur during policy evaluation
 data EngineError

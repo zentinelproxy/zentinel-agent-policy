@@ -1,13 +1,13 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Protocol
--- Description : Sentinel Agent Protocol v2 implementation
+-- Module      : Zentinel.Agent.Policy.Protocol
+-- Description : Zentinel Agent Protocol v2 implementation
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
 --
--- Self-contained implementation of the Sentinel Agent Protocol v2
+-- Self-contained implementation of the Zentinel Agent Protocol v2
 -- for Unix Domain Socket communication.
 
-module Sentinel.Agent.Policy.Protocol
+module Zentinel.Agent.Policy.Protocol
   ( -- * Running the Agent
     runAgent
   , ServerConfig(..)
@@ -88,7 +88,7 @@ data LogLevel = Debug | Info | Warn | Error
 -- | Default server configuration
 defaultServerConfig :: ServerConfig
 defaultServerConfig = ServerConfig
-  { scSocketPath = Just "/tmp/sentinel-policy.sock"
+  { scSocketPath = Just "/tmp/zentinel-policy.sock"
   , scLogLevel = Info
   }
 
@@ -363,7 +363,7 @@ runAgent
   -> AgentHandler
   -> IO ()
 runAgent config handler = do
-  let socketPath = maybe "/tmp/sentinel-policy.sock" id (scSocketPath config)
+  let socketPath = maybe "/tmp/zentinel-policy.sock" id (scSocketPath config)
 
   -- Remove existing socket file
   removeSocketFile socketPath

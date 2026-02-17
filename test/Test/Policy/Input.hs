@@ -9,8 +9,8 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
 
-import Sentinel.Agent.Policy
-import Sentinel.Agent.Policy.Input
+import Zentinel.Agent.Policy
+import Zentinel.Agent.Policy.Input
 
 spec :: Spec
 spec = do

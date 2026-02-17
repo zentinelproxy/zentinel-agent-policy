@@ -1,12 +1,12 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Config
+-- Module      : Zentinel.Agent.Policy.Config
 -- Description : Configuration types and loading
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
 --
 -- Configuration types and YAML loading for the policy agent.
 
-module Sentinel.Agent.Policy.Config
+module Zentinel.Agent.Policy.Config
   ( -- * Configuration Types
     AgentConfig(..)
   , CacheConfig(..)
@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import Data.Yaml (decodeFileThrow, ParseException)
 import GHC.Generics (Generic)
 import Options.Applicative
-import Sentinel.Agent.Policy.Types
+import Zentinel.Agent.Policy.Types
 
 -- | Cache configuration
 data CacheConfig = CacheConfig
@@ -96,7 +96,7 @@ data AgentConfig = AgentConfig
 
 instance FromJSON AgentConfig where
   parseJSON = withObject "AgentConfig" $ \v -> AgentConfig
-    <$> v .:? "socket" .!= "/tmp/sentinel-policy.sock"
+    <$> v .:? "socket" .!= "/tmp/zentinel-policy.sock"
     <*> v .:? "engine" .!= AutoEngine
     <*> v .:? "policies" .!= []
     <*> v .:? "input_mapping" .!= defaultInputMapping
@@ -139,7 +139,7 @@ defaultAuditConfig = AuditConfig
 -- | Default agent configuration
 defaultConfig :: AgentConfig
 defaultConfig = AgentConfig
-  { socketPath = "/tmp/sentinel-policy.sock"
+  { socketPath = "/tmp/zentinel-policy.sock"
   , engine = AutoEngine
   , policies = []
   , inputMapping = defaultInputMapping
@@ -169,8 +169,8 @@ parseCLIOptions = execParser opts
   where
     opts = info (cliOptionsParser <**> helper)
       ( fullDesc
-     <> progDesc "Policy evaluation agent for Sentinel reverse proxy"
-     <> header "sentinel-policy-agent - Rego/Cedar policy evaluator" )
+     <> progDesc "Policy evaluation agent for Zentinel reverse proxy"
+     <> header "zentinel-policy-agent - Rego/Cedar policy evaluator" )
 
 cliOptionsParser :: Parser CLIOptions
 cliOptionsParser = CLIOptions

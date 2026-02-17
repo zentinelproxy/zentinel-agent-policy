@@ -1,5 +1,5 @@
 -- |
--- Module      : Sentinel.Agent.Policy.Cedar
+-- Module      : Zentinel.Agent.Policy.Cedar
 -- Description : Cedar policy engine implementation
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
@@ -13,7 +13,7 @@
 --
 -- See: https://www.cedarpolicy.com/
 
-module Sentinel.Agent.Policy.Cedar
+module Zentinel.Agent.Policy.Cedar
   ( -- * Cedar Engine
     CedarEngine(..)
   , newCedarEngine
@@ -51,9 +51,9 @@ import System.IO (hClose)
 import System.IO.Temp (withSystemTempDirectory, withSystemTempFile)
 import System.Process (readProcessWithExitCode, CreateProcess(..), proc, withCreateProcess, StdStream(..), waitForProcess)
 
-import Sentinel.Agent.Policy.Engine
-import Sentinel.Agent.Policy.Types hiding (CedarEngine)
-import qualified Sentinel.Agent.Policy.Types as Types
+import Zentinel.Agent.Policy.Engine
+import Zentinel.Agent.Policy.Types hiding (CedarEngine)
+import qualified Zentinel.Agent.Policy.Types as Types
 
 -- | A parsed Cedar policy
 data CedarPolicy = CedarPolicy

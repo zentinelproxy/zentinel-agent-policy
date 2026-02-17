@@ -1,6 +1,6 @@
 {-# LANGUAGE DuplicateRecordFields #-}
 -- |
--- Module      : Sentinel.Agent.Policy.Types
+-- Module      : Zentinel.Agent.Policy.Types
 -- Description : Core types for policy evaluation
 -- Copyright   : (c) raskell.io, 2026
 -- License     : Apache-2.0
@@ -8,7 +8,7 @@
 -- Core types used throughout the policy agent including decisions,
 -- policy sources, and evaluation contexts.
 
-module Sentinel.Agent.Policy.Types
+module Zentinel.Agent.Policy.Types
   ( -- * Decision Types
     Decision(..)
   , DecisionReason(..)
