@@ -22,7 +22,8 @@ module Zentinel.Agent.Policy.Config
   , parseCLIOptions
   ) where
 
-import Data.Aeson (FromJSON(..), ToJSON(..), (.:), (.:?), (.!=), withObject)
+import Data.Aeson (FromJSON(..), ToJSON(..), (.:), (.:?), (.!=), (.=), withObject)
+import qualified Data.Aeson as Aeson
 import Data.Text (Text)
 import qualified Data.Text as T
 import Data.Yaml (decodeFileThrow, ParseException)
@@ -79,7 +80,13 @@ instance FromJSON PolicyConfig where
     <*> v .:? "refresh_interval"
 
 instance ToJSON PolicyConfig where
-  toJSON = undefined -- Not needed for config loading
+  toJSON pc = Aeson.object
+    [ "type" .= pcType pc
+    , "path" .= pcPath pc
+    , "content" .= pcContent pc
+    , "url" .= pcUrl pc
+    , "refresh_interval" .= pcRefreshInterval pc
+    ]
 
 -- | Complete agent configuration
 data AgentConfig = AgentConfig

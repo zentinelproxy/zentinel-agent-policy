@@ -26,6 +26,8 @@ import Data.Text (Text)
 import qualified Data.Text as T
 import Zentinel.Agent.Policy.Config (PolicyConfig(..))
 import Zentinel.Agent.Policy.Types
+import qualified Zentinel.Agent.Policy.Cedar as Cedar
+import qualified Zentinel.Agent.Policy.Rego as Rego
 
 -- | Errors that can occur during policy evaluation
 data EngineError
@@ -69,15 +71,13 @@ detectEngine path
 -- | Create an engine instance based on configuration
 createEngine :: PolicyEngine -> IO (Either EngineError SomeEngine)
 createEngine CedarEngine = do
-  -- Import Cedar engine
-  -- return $ Right $ SomeEngine cedarEngine
-  return $ Left $ UnsupportedEngine "Cedar engine not yet implemented"
+  engine <- Cedar.newCedarEngine
+  return $ Right $ SomeEngine engine
 createEngine RegoEngine = do
-  -- Import Rego engine
-  -- return $ Right $ SomeEngine regoEngine
-  return $ Left $ UnsupportedEngine "Rego engine not yet implemented"
+  engine <- Rego.newRegoEngine
+  return $ Right $ SomeEngine engine
 createEngine AutoEngine = do
-  -- Default to Cedar for now
+  -- Default to Cedar
   createEngine CedarEngine
 
 -- | Existential wrapper for any engine
@@ -119,9 +119,12 @@ loadPolicyConfig engine config = case pcType config of
     Nothing -> return $ Left $ LoadError "Inline policy missing 'content'"
 
   "bundle" -> case pcUrl config of
-    Just url -> do
-      -- TODO: Implement bundle fetching
-      return $ Left $ LoadError "Bundle loading not yet implemented"
+    Just _url -> do
+      -- Bundle loading requires an HTTP client (e.g., http-client-tls).
+      -- Add http-client-tls to build-depends and implement HTTP GET + JSON
+      -- decoding of the PolicyBundle type from Types.hs.
+      return $ Left $ LoadError
+        "Bundle loading requires http-client-tls dependency. Use 'file' or 'inline' policy types, or fetch bundles externally and provide them as files."
     Nothing -> return $ Left $ LoadError "Bundle policy missing 'url'"
 
   other -> return $ Left $ LoadError $ "Unknown policy type: " <> other

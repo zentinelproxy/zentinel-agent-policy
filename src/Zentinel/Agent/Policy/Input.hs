@@ -21,11 +21,15 @@ module Zentinel.Agent.Policy.Input
 
 import Data.Aeson (Value(..), object, (.=))
 import qualified Data.Aeson as Aeson
+import Data.Aeson.Key (fromText)
+import qualified Data.Aeson.KeyMap as KM
+import qualified Data.ByteString.Lazy as LBS
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import Data.Maybe (fromMaybe, listToMaybe)
 import Data.Text (Text)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 import Zentinel.Agent.Policy.Config
 import Zentinel.Agent.Policy.Types
 
@@ -64,10 +68,15 @@ extractPrincipal mapping headers queryParams = case mapping of
         }
 
   JWTClaimPrincipal claimName ->
-    -- JWT should be pre-validated by auth agent
-    -- Extract claim from X-JWT-Claims header if present
-    let claims = fromMaybe "{}" $ Map.lookup "x-jwt-claims" headers
-        pid = "jwt-user" -- TODO: Parse JWT claims JSON
+    -- JWT should be pre-validated by auth agent.
+    -- Extract claim from X-JWT-Claims header (JSON-encoded claims).
+    let claimsHeader = fromMaybe "{}" $ Map.lookup "x-jwt-claims" headers
+        pid = case Aeson.decode (LBS.fromStrict $ TE.encodeUtf8 claimsHeader) of
+          Just (Object obj) -> case KM.lookup (fromText claimName) obj of
+            Just (String v) -> v
+            Just (Number n) -> T.pack (show n)
+            _               -> "anonymous"
+          _ -> "anonymous"
     in Principal
         { principalId = pid
         , principalType = Just "User"
